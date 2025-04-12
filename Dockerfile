@@ -1,5 +1,4 @@
-# Dockerfile for Render deployment
-# Based on the Studio Dockerfile
+# Dockerfile for Render deployment - Modified for Render.com
 
 FROM node:20-slim AS base
 ENV PNPM_HOME="/pnpm"
@@ -25,12 +24,20 @@ COPY . .
 # Install dependencies
 RUN pnpm install --frozen-lockfile
 
-# Build the Studio - this creates the .next directory with build artifacts
-RUN pnpm --filter studio exec next build
+# Add an explicit step to find where the next.config.js is located
+RUN find /app -name "next.config.js" | grep studio
 
-# Set the port that Render will use
+# Build the Studio with explicit output options
+RUN cd apps/studio && npx next build
+
+# Set up environment variables
 ENV PORT=3000
+ENV HOST=0.0.0.0
 EXPOSE 3000
 
-# Start the application
-CMD ["node", "apps/studio/server.js"]
+# Create a simple start script to handle starting the Next.js server
+RUN echo '#!/bin/bash\ncd /app/apps/studio && node server.js' > /app/start.sh \
+    && chmod +x /app/start.sh
+
+# Start the application using our custom script
+CMD ["/app/start.sh"]
