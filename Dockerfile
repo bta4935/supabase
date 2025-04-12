@@ -25,14 +25,8 @@ COPY . .
 # Install dependencies
 RUN pnpm install --frozen-lockfile
 
-# Build the Studio
+# Build the Studio - this creates the .next directory with build artifacts
 RUN pnpm --filter studio exec next build
-
-# Prepare for production
-WORKDIR /app
-COPY apps/studio/public ./apps/studio/public
-COPY apps/studio/.next/standalone ./
-COPY apps/studio/.next/static ./apps/studio/.next/static
 
 # Set the port that Render will use
 ENV PORT=3000
