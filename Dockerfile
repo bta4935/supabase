@@ -1,43 +1,37 @@
-# Dockerfile for Render deployment - Modified for Render.com
+# Dockerfile for Supabase Studio on Render - Monorepo Approach
 
-FROM node:20-slim AS base
-ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
+FROM node:18-slim
 
-# Install required dependencies
-RUN apt-get update -qq && \
-  apt-get install -y --no-install-recommends \
-  git \
-  python3 \ 
-  ca-certificates \
-  build-essential && \ 
-  rm -rf /var/lib/apt/lists/* && \
-  update-ca-certificates
+# Install build essentials
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    python3 \
+    build-essential \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN npm install -g pnpm@9.15.5
+# Install pnpm - essential for the monorepo
+RUN npm install -g pnpm@8.x
 
 WORKDIR /app
 
-# Copy project files
-COPY . .
+# First, copy workspace configuration
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
 
-# Install dependencies
+# Copy the studio app
+COPY apps/studio/ ./apps/studio/
+
+# Copy shared packages if needed
+COPY packages/ ./packages/
+
+# Install dependencies with pnpm
 RUN pnpm install --frozen-lockfile
 
-# Add an explicit step to find where the next.config.js is located
-RUN find /app -name "next.config.js" | grep studio
-
-# Build the Studio with explicit output options
-RUN cd apps/studio && npx next build
-
-# Set up environment variables
+# Set up environment for Render
 ENV PORT=3000
-ENV HOST=0.0.0.0
 EXPOSE 3000
 
-# Create a simple start script to handle starting the Next.js server
-RUN echo '#!/bin/bash\ncd /app/apps/studio && node server.js' > /app/start.sh \
-    && chmod +x /app/start.sh
-
-# Start the application using our custom script
-CMD ["/app/start.sh"]
+# Using a direct approach to start Next.js dev server rather than production build
+# This is a fallback approach when the production build has issues
+WORKDIR /app/apps/studio
+CMD ["pnpm", "dev", "--port", "3000", "--hostname", "0.0.0.0"]
